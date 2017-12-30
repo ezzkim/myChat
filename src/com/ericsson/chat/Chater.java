@@ -8,20 +8,33 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-public class ChatClient extends Frame {
+import com.ericsson.thread.MessageReceiver;
+import com.ericsson.thread.ThreadFactory;
 
+public class Chater extends Frame {
+
+	private static String ip = "127.0.0.1";
+	private static int port = 8888;
+	
 	private TextField tfTxt = new TextField();
 	private TextArea taContent = new TextArea();
 	private Socket s = null;
+	private DataInputStream dis = null;
 	private DataOutputStream dos = null;
 
 	public static void main(String[] args) {
-		new ChatClient().launchFrame();
+		if(args.length == 2) {
+			ip = args[0];
+			port = Integer.parseInt(args[1]);
+		}
+		
+		new Chater().launchFrame();
 	}
 
 	private void launchFrame() {
@@ -46,12 +59,16 @@ public class ChatClient extends Frame {
 		this.setVisible(true);
 		
 		login();
+		
+		MessageReceiver receiver = new MessageReceiver(taContent, dis);
+		ThreadFactory.lunchThread(receiver);
 	}
 	
 	private void login() {
 		try {
-			s = new Socket("127.0.0.1", 8888);
+			s = new Socket(ip, port);
 			System.out.println("Client have connected to server");
+			dis = new DataInputStream(s.getInputStream());
 			dos = new DataOutputStream(s.getOutputStream());
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -60,12 +77,11 @@ public class ChatClient extends Frame {
 		}
 	}
 	
-	private void sendMessage() {
-		
-	}
-	
 	private void logout() {
 		try {
+			dos.writeUTF("bye");
+			dos.flush();
+			
 			dos.close();
 			s.close();
 		} catch (IOException e) {
@@ -77,15 +93,12 @@ public class ChatClient extends Frame {
 
 		public void actionPerformed(ActionEvent e) {
 			String str = tfTxt.getText().trim();
-			//taContent.setText(str);
 			tfTxt.setText("");
-			//taContent.append(str+"\n");
 			
 			try {
-				//dos.writeBytes(str);
+				//String message = s.getInetAddress().getHostAddress()  + ":" + s.getPort() + " say : " + str;
 				dos.writeUTF(str);
 				dos.flush();
-				//dos.close();
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
